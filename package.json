@@ -1,31 +1,44 @@
 {
-  "name": "homebridge-icontrol-platform",
-  "version": "0.2.9",
+  "name": "@seydx/homebridge-icontrol-platform",
+  "version": "0.0.1",
   "description": "iControl (Xfinity Home) for Homebridge: https://github.com/nfarina/homebridge",
   "license": "ISC",
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "icontrol",
+    "homebridge",
+    "plugin",
+    "security"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/wylanswets/homebridge-icontrol-platform.git"
+    "url": "git://github.com/seydx/homebridge-icontrol-platform.git"
   },
   "bugs": {
-    "url": "https://github.com/wylanswets/homebridge-icontrol-platform/issues"
+    "url": "https://github.com/seydx/homebridge-icontrol-platform/issues"
   },
   "engines": {
-    "node": ">=0.12.0",
-    "homebridge": ">=0.2.0"
+    "node": ">=12.18.3",
+    "homebridge": "^1.3.0"
   },
   "dependencies": {
     "icontrol-api": "1.2.3",
     "process": "^0.11.10"
   },
-  "homepage": "https://github.com/wylanswets/homebridge-icontrol-platform#readme",
+  "homepage": "https://github.com/seydx/homebridge-icontrol-platform#readme",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint --fix ."
   },
-  "author": "Wylan Swets",
-  "devDependencies": {}
+  "author": "Wylan Swets & SeydX",
+  "devDependencies": {
+    "@babel/core": "7.15.5",
+    "@babel/eslint-parser": "7.15.7",
+    "@babel/eslint-plugin": "7.14.5",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.24.2",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.4.1"
+  }
 }

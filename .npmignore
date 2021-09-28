@@ -36,11 +36,10 @@ build/Release
 node_modules/
 jspm_packages/
 
-# Typescript v1 declaration files
-typings/
-
 # Optional npm cache directory
 .npm
+package-lock.json
+yarn.lock
 
 # Optional eslint cache
 .eslintcache
@@ -55,5 +54,12 @@ typings/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-homebridge-ui/public
+.envtest/
+.github
+.vscode
+demo
+example-config.json
+.prettierrc.json
+.eslintrc.js
+images/hb_braviatvos_ui_final.gif
+homebridge-ui/ui

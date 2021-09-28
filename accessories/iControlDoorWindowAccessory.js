@@ -1,123 +1,138 @@
-var iControlAccessory = require("./iControlAccessory.js");
+function iControlDoorWindowAccessory(api, log, accessory, sensor, session) {
+  this.api = api;
+  this.log = log;
+  this.accessory = accessory;
 
-function iControlDoorWindowAccessory(log, accessory, sensor, session) {
-    iControlAccessory.call(this, log, accessory, sensor, session);
+  this.sensor = sensor;
+  this.session = session;
+  this.deviceId = sensor.id;
 
-    this.sensor = sensor;
+  //AccessoryInformation
+  const AccessoryInformation = this.accessory.getService(this.api.hap.Service.AccessoryInformation);
 
-    this.service = this.accessory.getService(global.Service.ContactSensor);
+  this.accessory.context.manufacturer = this.sensor.manufacturer.toString() || 'iControl';
+  this.accessory.context.model = this.sensor.model.toString() || 'Sensor';
+  this.accessory.context.serial =
+    (this.sensor.serialNumber ? this.sensor.serialNumber : this.sensor.hardwareId).toString() || '000000';
+  this.accessory.context.revision = this.sensor.firmwareVersion.toString() || '1.0';
 
-    this.service
-        .getCharacteristic(global.Characteristic.ContactSensorState)
-        .on('get', this._getCurrentState.bind(this));
+  AccessoryInformation.setCharacteristic(this.api.hap.Characteristic.Manufacturer, this.accessory.context.manufacturer);
+  AccessoryInformation.setCharacteristic(this.api.hap.Characteristic.Model, this.accessory.context.model);
+  AccessoryInformation.setCharacteristic(this.api.hap.Characteristic.SerialNumber, this.accessory.context.serial);
+  AccessoryInformation.setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, this.accessory.context.revision);
 
-    this.service
-        .getCharacteristic(global.Characteristic.StatusTampered)
-        .on('get', this._getTamperStatus.bind(this));
+  this.service = this.accessory.getService(this.api.hap.Service.ContactSensor);
 
+  this.service
+    .getCharacteristic(this.api.hap.Characteristic.ContactSensorState)
+    .on('get', this._getCurrentState.bind(this));
 
-    this.accessory.updateReachability(true);
+  this.service
+    .getCharacteristic(this.api.hap.Characteristic.StatusTampered)
+    .on('get', this._getTamperStatus.bind(this));
 
+  this.accessory.updateReachability(true);
 }
 
-iControlDoorWindowAccessory.prototype = Object.create(iControlAccessory.prototype);
-
-
-iControlDoorWindowAccessory.prototype.event = function(event) {
- 
+iControlDoorWindowAccessory.prototype = {
+  event: function (event) {
     //Check if this event is for this sensor
-    if(event.deviceId === this.sensor.id) {
-        //Faulted is contact open or closed
-        if(event.name === 'isFaulted') {
-            var targetState = this._getHomeKitStateFromCurrentState(event.value);
-            this.service
-                .getCharacteristic(Characteristic.ContactSensorState)
-                .setValue(targetState);
-        }
-
-        //trouble -> senTamp / senTampRes is tamper
-        if(event.name === 'trouble') {
-            if(event.value === 'senTamp' || event.value === 'senTampRes') {
-                var tamperStatus = this._getHomeKitTamperStateFromTamperState(event.value);
-                this.service
-                    .getCharacteristic(Characteristic.StatusTampered)
-                    .setValue(tamperStatus);
-            }
-        }
-
-    }
-}
-
-iControlDoorWindowAccessory.prototype._getTamperStatus = function(callback) {
-    var self = this;
-    this.session._getCurrentStatus(function(data, error) {
-        if(error === null) {
-            for(var i in data.devices) {
-                var device = data.devices[i];
-                if(device.serialNumber == self.sensor.serialNumber) {
-                  var tampered = false;
-                  if(device.trouble.length !== 0) {
-                      for(var j in device.trouble) {
-                          if(device.trouble[j].name === 'senTamp') {
-                              tampered = true;
-                          }
-                      }
-                  }
-      
-                  var tamperStatus = self._getHomeKitTamperStateFromTamperState(tampered);
-      
-                  callback(tamperStatus);
-                }
-                
-              }
-        } else {
-            callback(null);
-        }
-        
-    });
-}
-
-iControlDoorWindowAccessory.prototype._getCurrentState = function(callback) {
-  var self = this;
-  this.session._getCurrentStatus(function(data, error) {
-      if(error === null) {
-        for(var i in data.devices) {
-            var device = data.devices[i];
-            if(device.serialNumber == self.sensor.serialNumber) {
-                var currentState = self._getHomeKitStateFromCurrentState(device.properties.isFaulted);
-                callback(null, currentState);
-            }
-            
-          }
-      } else {
-          callback(null, null);
+    if (event && event.deviceId === this.sensor.id) {
+      //Faulted is contact open or closed
+      if (event.name === 'isFaulted') {
+        const targetState = this._getHomeKitStateFromCurrentState(event.value);
+        this.service.getCharacteristic(this.api.hap.Characteristic.ContactSensorState).updateValue(targetState);
       }
-      
-  });
-}
 
-iControlDoorWindowAccessory.prototype._getHomeKitStateFromCurrentState = function(isFaulted) {
-  switch (isFaulted) {
-    case true: 
-    case 'true':
-        return Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
-    case false: 
-    case 'false':
-        return Characteristic.ContactSensorState.CONTACT_DETECTED;
-    
-  }
-}
-
-iControlDoorWindowAccessory.prototype._getHomeKitTamperStateFromTamperState = function(tamperValue) {
-    switch (tamperValue) {
-      case true: 
-      case 'senTamp':
-          return Characteristic.StatusTampered.TAMPERED;
-      case false: 
-      case 'senTampRes':
-          return Characteristic.StatusTampered.NOT_TAMPERED;
-      
+      //trouble -> senTamp / senTampRes is tamper
+      if (event.name === 'trouble') {
+        if (event.value === 'senTamp' || event.value === 'senTampRes') {
+          const tamperStatus = this._getHomeKitTamperStateFromTamperState(event.value);
+          this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).updateValue(tamperStatus);
+        }
+      }
     }
-}
+  },
+
+  _getTamperStatus: function (callback) {
+    const state = this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).value;
+
+    this.session._getCurrentStatus((data, error) => {
+      if (error === null) {
+        for (const i in data.devices) {
+          const device = data.devices[i];
+
+          if (device.serialNumber == this.sensor.serialNumber) {
+            let tampered = false;
+
+            if (device.trouble.length !== 0) {
+              for (const j in device.trouble) {
+                if (device.trouble[j].name === 'senTamp') {
+                  tampered = true;
+                }
+              }
+            }
+
+            const tamperStatus = this._getHomeKitTamperStateFromTamperState(tampered);
+            this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).updateValue(tamperStatus);
+          }
+        }
+      } else {
+        this.log.warning(`${this.accessory.displayName}: An error occured during getting tamper status!`);
+        this.log.error(error);
+      }
+    });
+
+    callback(null, state);
+  },
+
+  _getCurrentState: function (callback) {
+    const state = this.service.getCharacteristic(this.api.hap.Characteristic.ContactSensorState).value;
+
+    this.session._getCurrentStatus((data, error) => {
+      if (error === null) {
+        for (const i in data.devices) {
+          const device = data.devices[i];
+
+          if (device.serialNumber == this.sensor.serialNumber) {
+            const currentState = this._getHomeKitStateFromCurrentState(device.properties.isFaulted);
+            this.service.getCharacteristic(this.api.hap.Characteristic.ContactSensorState).updateValue(currentState);
+          }
+        }
+      } else {
+        this.log.warning(`${this.accessory.displayName}: An error occured during getting current state (sensor)!`);
+        this.log.error(error);
+      }
+    });
+
+    callback(null, state);
+  },
+
+  _getHomeKitStateFromCurrentState: function (isFaulted) {
+    switch (isFaulted) {
+      case true:
+      case 'true':
+        return this.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+      case false:
+      case 'false':
+        return this.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
+      default:
+        return this.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
+    }
+  },
+
+  _getHomeKitTamperStateFromTamperState: function (tamperValue) {
+    switch (tamperValue) {
+      case true:
+      case 'senTamp':
+        return this.api.hap.Characteristic.StatusTampered.TAMPERED;
+      case false:
+      case 'senTampRes':
+        return this.api.hap.Characteristic.StatusTampered.NOT_TAMPERED;
+      default:
+        return this.api.hap.Characteristic.StatusTampered.TAMPERED;
+    }
+  },
+};
 
 module.exports = iControlDoorWindowAccessory;
