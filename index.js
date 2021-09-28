@@ -1,10 +1,11 @@
-var iControl = require('icontrol-api').iControl;
-var process = require('process');
-var Accessory, Service, UUIDGen;
+const iControl = require('icontrol-api').iControl;
+const process = require('process');
 
-var iControlPanelAccessory = require('./accessories/iControlPanelAccessory');
-var iControlDoorWindowAccessory = require('./accessories/iControlDoorWindowAccessory');
-var iControlLightAccessory = require('./accessories/iControlLightAccessory');
+const iControlPanelAccessory = require('./accessories/iControlPanelAccessory');
+const iControlDoorWindowAccessory = require('./accessories/iControlDoorWindowAccessory');
+const iControlLightAccessory = require('./accessories/iControlLightAccessory');
+
+let Accessory, Service, UUIDGen;
 
 module.exports = function (homebridge) {
   // Accessory must be created from PlatformAccessory Constructor
