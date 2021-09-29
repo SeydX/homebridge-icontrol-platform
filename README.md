@@ -18,7 +18,11 @@ To configure, add this to your homebridge config.json file:
             "password": "password_here",
             "pin": "1234",
             "path": "/OPTIONAL/your/absolute/path/persist,
-            "refresh_token": "refresh token that you got by using a proxy on your phone"
+            "refresh_token": "refresh token that you got by using a proxy on your phone",
+            "securityDoors": [
+                "Front Door",
+                "Back Door"
+            ]
         }
     ]
 

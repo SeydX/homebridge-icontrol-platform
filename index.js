@@ -25,9 +25,11 @@ function iControlPlatform(log, config, api) {
 
   this.api = api;
   this.log = log;
+  this.config = config;
   this.accessories = [];
 
   this.subscribed = false;
+  this.securityDoors = Array.isArray(config.securityDoors) ? config.securityDoors : [];
 
   this.iControl = new iControl({
     system: iControl.Systems[config.system],
@@ -45,7 +47,7 @@ function iControlPlatform(log, config, api) {
 
 iControlPlatform.prototype = {
   didFinishLaunching: function () {
-    this.iControl._getAccessories(function (data, error) {
+    this.iControl._getAccessories((data, error) => {
       if (error === null) {
         this.addAccessories(data);
         this.subscribed = true;
@@ -56,15 +58,15 @@ iControlPlatform.prototype = {
 
   subscribeEvents: function () {
     //Do this on repeat and send statuses to all accessories
-    const recurse = function () {
+    const recurse = () => {
       process.nextTick(() => {
-        this.iControl.subscribeEvents(function (data, error) {
+        this.iControl.subscribeEvents((data, error) => {
           if (error !== null) {
             // this.log(error);
             //Let's give the server some time before we immediately start bugging it again.
             this.log('Backing off live updates for 5 seconds.');
 
-            setTimeout(function () {
+            setTimeout(() => {
               recurse();
             }, 5000);
           } else {
@@ -133,11 +135,18 @@ iControlPlatform.prototype = {
           if (accessory === undefined) {
             this.registerPanelAccessory(newAccessory);
           } else {
+            const acc = accessory instanceof iControlPanelAccessory ? accessory.accessory : accessory;
+
+            this.log(`Initializing ${acc.displayName}`);
+
             this.accessories[uuid] = new iControlPanelAccessory(
+              this.api,
               this.log,
-              accessory instanceof iControlPanelAccessory ? accessory.accessory : accessory,
+              this.accessories,
+              acc,
               newAccessory,
-              this.iControl
+              this.iControl,
+              this.securityDoors
             );
           }
           break;
@@ -148,9 +157,14 @@ iControlPlatform.prototype = {
               if (accessory === undefined) {
                 this.registerDoorWindowAccessory(newAccessory);
               } else {
+                const acc = accessory instanceof iControlPanelAccessory ? accessory.accessory : accessory;
+
+                this.log(`Initializing ${acc.displayName}`);
+
                 this.accessories[uuid] = new iControlDoorWindowAccessory(
+                  this.api,
                   this.log,
-                  accessory instanceof iControlDoorWindowAccessory ? accessory.accessory : accessory,
+                  acc,
                   newAccessory,
                   this.iControl
                 );
@@ -163,12 +177,11 @@ iControlPlatform.prototype = {
           if (accessory === undefined) {
             this.registerLightAccessory(newAccessory);
           } else {
-            this.accessories[uuid] = new iControlLightAccessory(
-              this.log,
-              accessory instanceof iControlLightAccessory ? accessory.accessory : accessory,
-              newAccessory,
-              this.iControl
-            );
+            const acc = accessory instanceof iControlPanelAccessory ? accessory.accessory : accessory;
+
+            this.log(`Initializing ${acc.displayName}`);
+
+            this.accessories[uuid] = new iControlLightAccessory(this.api, this.log, acc, newAccessory, this.iControl);
           }
           break;
       }
@@ -182,9 +195,11 @@ iControlPlatform.prototype = {
     const name = accessory.name == '' ? 'Dry Contact' : accessory.name;
     const acc = new Accessory(name, uuid);
 
+    this.log(`Initializing ${name}`);
+
     acc.addService(Service.ContactSensor);
 
-    this.accessories[uuid] = new iControlDoorWindowAccessory(this.log, acc, accessory, this.iControl);
+    this.accessories[uuid] = new iControlDoorWindowAccessory(this.api, this.log, acc, accessory, this.iControl);
 
     this.api.registerPlatformAccessories('homebridge-icontrol-platform', 'iControl', [acc]);
   },
@@ -201,9 +216,19 @@ iControlPlatform.prototype = {
     const name = accessory.name == '' ? 'Security System' : accessory.name;
     const acc = new Accessory(name, uuid);
 
+    this.log(`Initializing ${name}`);
+
     acc.addService(Service.SecuritySystem, name);
 
-    this.accessories[uuid] = new iControlPanelAccessory(this.log, acc, accessory, this.iControl);
+    this.accessories[uuid] = new iControlPanelAccessory(
+      this.api,
+      this.log,
+      this.accessories,
+      acc,
+      accessory,
+      this.iControl,
+      this.securityDoors
+    );
 
     this.api.registerPlatformAccessories('homebridge-icontrol-platform', 'iControl', [acc]);
   },
@@ -213,9 +238,11 @@ iControlPlatform.prototype = {
     const name = accessory.name == '' ? 'Light' : accessory.name;
     const acc = new Accessory(name, uuid);
 
+    this.log(`Initializing ${name}`);
+
     acc.addService(Service.Lightbulb, name);
 
-    this.accessories[uuid] = new iControlLightAccessory(this.log, acc, accessory, this.iControl);
+    this.accessories[uuid] = new iControlLightAccessory(this.api, this.log, acc, accessory, this.iControl);
 
     this.api.registerPlatformAccessories('homebridge-icontrol-platform', 'iControl', [acc]);
   },

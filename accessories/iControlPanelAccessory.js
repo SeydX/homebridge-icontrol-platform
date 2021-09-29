@@ -1,11 +1,13 @@
-function iControlPanelAccessory(api, log, accessory, panel, session) {
+function iControlPanelAccessory(api, log, accessories, accessory, panel, session, securityDoors) {
   this.api = api;
   this.log = log;
+  this.accessories = accessories;
   this.accessory = accessory;
 
   this.panel = panel;
   this.session = session;
   this.deviceId = panel.id;
+  this.securityDoors = securityDoors;
 
   //AccessoryInformation
   const AccessoryInformation = this.accessory.getService(this.api.hap.Service.AccessoryInformation);
@@ -137,9 +139,46 @@ iControlPanelAccessory.prototype = {
   },
 
   _setTargetState: function (targetState, callback) {
+    if (targetState === 1 || targetState === 2) {
+      //1 Away; 2 Night
+      const securityDoors = this._getSecurityDoors();
+
+      if (securityDoors.length) {
+        this.log(`${this.accessory.displayName}: Found ${securityDoors.length} security doors`);
+
+        let currentState = this.service.getCharacteristic(this.api.hap.Characteristic.SecuritySystemTargetState).value;
+        let openedDoors = [];
+
+        securityDoors.forEach((doorAccessory) => {
+          const service = doorAccessory.getService(this.api.hap.Service.ContactSensor);
+          const state = service.getCharacteristic(this.api.hap.Characteristic.ContactSensorState).value;
+
+          if (state) {
+            openedDoors.push(doorAccessory.displayName);
+          }
+        });
+
+        if (openedDoors.length) {
+          //Contact NOT Detected
+          this.log(`${this.accessory.displayName}: Can not change state to ${targetState === 1 ? 'AWAY' : 'NIGHT'}!`);
+          this.log(`${this.accessory.displayName}: Security Door(s) are still open: ${openedDoors.toString()}`);
+
+          setTimeout(() => {
+            this.service
+              .getCharacteristic(this.api.hap.Characteristic.SecuritySystemTargetState)
+              .updateValue(currentState);
+          }, 500);
+
+          return callback(null);
+        }
+      }
+    }
+
     const armState = this._getArmStateFromHomeKitState(targetState);
 
     const endpoint = armState == 'disarmed' ? 'disarm' : 'arm';
+
+    this.log(`${this.accessory.displayName}: ${armState}`);
 
     const form = {
       code: this.session.pinCode,
@@ -205,6 +244,26 @@ iControlPanelAccessory.prototype = {
       default:
         return 'disarmed';
     }
+  },
+
+  _getSecurityDoors: function () {
+    let securityDoors = [];
+
+    this.securityDoors.forEach((door) => {
+      for (const i in this.accessories) {
+        let accessory = this.accessories[i];
+
+        if (!this.accessories[i].displayName) {
+          accessory = this.accessories[i].accessory;
+        }
+
+        if (accessory.displayName === door) {
+          securityDoors.push(accessory);
+        }
+      }
+    });
+
+    return securityDoors;
   },
 };
 module.exports = iControlPanelAccessory;
