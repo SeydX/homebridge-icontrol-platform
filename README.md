@@ -1,6 +1,7 @@
 # homebridge-icontrol-platform
+
 Enables iControl home security systems and other accessories in Homebridge for homekit
-Currently only supports XFinity Home (the one I have)
+Currently only supports XFinity Home (forked from [wylanswets](https://github.com/wylanswets/homebridge-icontrol-platform))
 
 To install:
 
