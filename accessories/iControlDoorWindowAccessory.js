@@ -31,6 +31,8 @@ function iControlDoorWindowAccessory(api, log, accessory, sensor, session) {
     .getCharacteristic(this.api.hap.Characteristic.StatusTampered)
     .on('get', this._getTamperStatus.bind(this));
 
+  this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).on('get', this._getStatusFault.bind(this));
+
   this.accessory.updateReachability(true);
 }
 
@@ -49,6 +51,9 @@ iControlDoorWindowAccessory.prototype = {
         if (event.value === 'senTamp' || event.value === 'senTampRes') {
           const tamperStatus = this._getHomeKitTamperStateFromTamperState(event.value);
           this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).updateValue(tamperStatus);
+
+          const faultStatus = this._getHomeKitStatusFaultFromFaultState(event.value);
+          this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).updateValue(faultStatus);
         }
       }
     }
@@ -79,6 +84,38 @@ iControlDoorWindowAccessory.prototype = {
         }
       } else {
         this.log.warning(`${this.accessory.displayName}: An error occured during getting tamper status!`);
+        this.log.error(error);
+      }
+    });
+
+    callback(null, state);
+  },
+
+  _getStatusFault: function (callback) {
+    const state = this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).value;
+
+    this.session._getCurrentStatus((data, error) => {
+      if (error === null) {
+        for (const i in data.devices) {
+          const device = data.devices[i];
+
+          if (device.serialNumber == this.sensor.serialNumber) {
+            let fault = false;
+
+            if (device.trouble.length !== 0) {
+              for (const j in device.trouble) {
+                if (device.trouble[j].name === 'senTamp') {
+                  fault = true;
+                }
+              }
+            }
+
+            const faultStatus = this._getHomeKitStatusFaultFromFaultState(fault);
+            this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).updateValue(faultStatus);
+          }
+        }
+      } else {
+        this.log.warning(`${this.accessory.displayName}: An error occured during getting fault state!`);
         this.log.error(error);
       }
     });
@@ -130,7 +167,20 @@ iControlDoorWindowAccessory.prototype = {
       case 'senTampRes':
         return this.api.hap.Characteristic.StatusTampered.NOT_TAMPERED;
       default:
-        return this.api.hap.Characteristic.StatusTampered.TAMPERED;
+        return this.api.hap.Characteristic.StatusTampered.NOT_TAMPERED;
+    }
+  },
+
+  _getHomeKitStatusFaultFromFaultState: function (faultValue) {
+    switch (faultValue) {
+      case true:
+      case 'senTamp':
+        return this.api.hap.Characteristic.StatusFault.GENERAL_FAULT;
+      case false:
+      case 'senTampRes':
+        return this.api.hap.Characteristic.StatusFault.NO_FAULT;
+      default:
+        return this.api.hap.Characteristic.StatusFault.NO_FAULT;
     }
   },
 };
