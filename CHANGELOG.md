@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.2 - 2021-09-29
+
+- Added Battery Service: `StatusLowBattery`
+- Added new function to check also tampered sensor state before arming/disarming security system
+- Minor Bugfixes
+  
 ## v1.0.1 - 2021-09-29
 
 - Added `Fault Status` and `Tampered Status` to the contact sensors

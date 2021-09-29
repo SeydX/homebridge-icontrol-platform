@@ -147,21 +147,36 @@ iControlPanelAccessory.prototype = {
         this.log(`${this.accessory.displayName}: Found ${securityDoors.length} security doors`);
 
         let currentState = this.service.getCharacteristic(this.api.hap.Characteristic.SecuritySystemTargetState).value;
+
         let openedDoors = [];
+        let tamperedState = [];
 
         securityDoors.forEach((doorAccessory) => {
           const service = doorAccessory.getService(this.api.hap.Service.ContactSensor);
           const state = service.getCharacteristic(this.api.hap.Characteristic.ContactSensorState).value;
 
+          const tamperedState = service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).value;
+
           if (state) {
             openedDoors.push(doorAccessory.displayName);
+          } else if (tamperedState) {
+            tamperedState.push(doorAccessory.displayName);
           }
         });
 
-        if (openedDoors.length) {
+        if (openedDoors.length || tamperedState.length) {
           //Contact NOT Detected
           this.log(`${this.accessory.displayName}: Can not change state to ${targetState === 1 ? 'AWAY' : 'NIGHT'}!`);
-          this.log(`${this.accessory.displayName}: Security Door(s) are still open: ${openedDoors.toString()}`);
+
+          if (openedDoors.length) {
+            this.log(`${this.accessory.displayName}: Security Door(s) are still open: ${openedDoors.toString()}`);
+          }
+
+          if (tamperedState.length) {
+            this.log(
+              `${this.accessory.displayName}: Security Door(s) are in tampered state: ${tamperedState.toString()}`
+            );
+          }
 
           setTimeout(() => {
             this.service

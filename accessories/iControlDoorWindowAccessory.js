@@ -27,11 +27,21 @@ function iControlDoorWindowAccessory(api, log, accessory, sensor, session) {
     .getCharacteristic(this.api.hap.Characteristic.ContactSensorState)
     .on('get', this._getCurrentState.bind(this));
 
+  //will also update Status.Fault and BatteryService
   this.service
     .getCharacteristic(this.api.hap.Characteristic.StatusTampered)
-    .on('get', this._getTamperStatus.bind(this));
+    .on('get', this._getTamperFaultBatteryStatus.bind(this));
 
-  this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).on('get', this._getStatusFault.bind(this));
+  this.batteryService = this.accessory.getService(this.api.hap.Service.BatteryService);
+
+  if (!this.batteryService) {
+    this.batteryService = this.accessory.addService(this.api.hap.Service.BatteryService);
+  }
+
+  this.batteryService.setCharacteristic(
+    this.api.hap.Characteristic.ChargingState,
+    this.api.hap.Characteristic.ChargingState.NOT_CHARGEABLE
+  );
 
   this.accessory.updateReachability(true);
 }
@@ -52,15 +62,22 @@ iControlDoorWindowAccessory.prototype = {
           const tamperStatus = this._getHomeKitTamperStateFromTamperState(event.value);
           this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).updateValue(tamperStatus);
 
-          const faultStatus = this._getHomeKitStatusFaultFromFaultState(event.value);
+          const faultStatus = this._getHomeKitStatusFaultFromTamperState(event.value);
           this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).updateValue(faultStatus);
+
+          const batteryStatus = this._getHomeKitBatteryStatusFromTamperState(event.value);
+          this.batteryService
+            .getCharacteristic(this.api.hap.Characteristic.StatusLowBattery)
+            .updateValue(batteryStatus);
         }
       }
     }
   },
 
-  _getTamperStatus: function (callback) {
-    const state = this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).value;
+  _getTamperFaultBatteryStatus: function (callback) {
+    const stateTampered = this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).value;
+    //const stateFault = this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).value;
+    //const stateBattery = this.batteryService.getCharacteristic(this.api.hap.Characteristic.StatusLowBattery).value;
 
     this.session._getCurrentStatus((data, error) => {
       if (error === null) {
@@ -79,7 +96,14 @@ iControlDoorWindowAccessory.prototype = {
             }
 
             const tamperStatus = this._getHomeKitTamperStateFromTamperState(tampered);
+            const faultStatus = this._getHomeKitStatusFaultFromTamperState(tampered);
+            const batteryStatus = this._getHomeKitBatteryStatusFromTamperState(tampered);
+
             this.service.getCharacteristic(this.api.hap.Characteristic.StatusTampered).updateValue(tamperStatus);
+            this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).updateValue(faultStatus);
+            this.batteryService
+              .getCharacteristic(this.api.hap.Characteristic.StatusLowBattery)
+              .updateValue(batteryStatus);
           }
         }
       } else {
@@ -88,39 +112,7 @@ iControlDoorWindowAccessory.prototype = {
       }
     });
 
-    callback(null, state);
-  },
-
-  _getStatusFault: function (callback) {
-    const state = this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).value;
-
-    this.session._getCurrentStatus((data, error) => {
-      if (error === null) {
-        for (const i in data.devices) {
-          const device = data.devices[i];
-
-          if (device.serialNumber == this.sensor.serialNumber) {
-            let fault = false;
-
-            if (device.trouble.length !== 0) {
-              for (const j in device.trouble) {
-                if (device.trouble[j].name === 'senTamp') {
-                  fault = true;
-                }
-              }
-            }
-
-            const faultStatus = this._getHomeKitStatusFaultFromFaultState(fault);
-            this.service.getCharacteristic(this.api.hap.Characteristic.StatusFault).updateValue(faultStatus);
-          }
-        }
-      } else {
-        this.log.warning(`${this.accessory.displayName}: An error occured during getting fault state!`);
-        this.log.error(error);
-      }
-    });
-
-    callback(null, state);
+    callback(null, stateTampered);
   },
 
   _getCurrentState: function (callback) {
@@ -171,7 +163,7 @@ iControlDoorWindowAccessory.prototype = {
     }
   },
 
-  _getHomeKitStatusFaultFromFaultState: function (faultValue) {
+  _getHomeKitStatusFaultFromTamperState: function (faultValue) {
     switch (faultValue) {
       case true:
       case 'senTamp':
@@ -181,6 +173,19 @@ iControlDoorWindowAccessory.prototype = {
         return this.api.hap.Characteristic.StatusFault.NO_FAULT;
       default:
         return this.api.hap.Characteristic.StatusFault.NO_FAULT;
+    }
+  },
+
+  _getHomeKitBatteryStatusFromTamperState: function (batteryValue) {
+    switch (batteryValue) {
+      case true:
+      case 'senTamp':
+        return this.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW;
+      case false:
+      case 'senTampRes':
+        return this.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL;
+      default:
+        return this.api.hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL;
     }
   },
 };
