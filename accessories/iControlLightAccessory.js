@@ -137,7 +137,7 @@ iControlLightAccessory.prototype = {
       },
     };
 
-    this.session._makeAuthenticatedRequest(req, function (data, error) {
+    this.session._makeAuthenticatedRequest(req, (data, error) => {
       if (error === null) {
         this.service.getCharacteristic(this.api.hap.Characteristic.On).updateValue(targetState);
       }

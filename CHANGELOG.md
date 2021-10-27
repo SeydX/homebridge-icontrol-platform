@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.3 - 2021-10-27
+
+- Bugfix
+
 ## v1.0.2 - 2021-09-29
 
 - Added Battery Service: `StatusLowBattery`
