@@ -51,7 +51,7 @@ iControlLightAccessory.prototype = {
       this.service.getCharacteristic(this.api.hap.Characteristic.Brightness).updateValue(event.metadata.level || 0);
     } else if (event.metadata.commandType === 'lightingUpdate') {
       //Since the API does not tell us which light it is, every light will have to get its own status again.
-      this._getCurrentState(function (error, result) {
+      this._getCurrentState((error, result) => {
         if (error === null) {
           this._gettingState = false;
           this.service.getCharacteristic(this.api.hap.Characteristic.On).updateValue(result || false);
